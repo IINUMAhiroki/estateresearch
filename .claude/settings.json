@@ -1,0 +1,51 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm *)",
+      "Bash(supabase *)",
+      "Bash(vercel env pull*)",
+      "Bash(vercel link*)",
+      "Bash(git *)",
+      "Bash(gh pr *)",
+      "Bash(psql *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Bash(supabase db push*)",
+      "Bash(vercel --prod*)",
+      "Bash(vercel env add*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/migration-guard.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/rls-on-stop.sh",
+            "timeout": 180
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "supabase@claude-plugins-official": true,
+    "vercel@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true
+  }
+}
