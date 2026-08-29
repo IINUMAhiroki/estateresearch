@@ -18,6 +18,19 @@
     ]
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/quality-check.sh",
+            "if": "Bash(git commit:*)",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
@@ -46,6 +59,7 @@
     "vercel@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
     "frontend-design@claude-plugins-official": true,
-    "typescript-lsp@claude-plugins-official": true
+    "typescript-lsp@claude-plugins-official": true,
+    "claude-security@claude-plugins-official": true
   }
 }

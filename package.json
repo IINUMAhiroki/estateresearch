@@ -9,7 +9,7 @@
     "check": "biome check .",
     "check:write": "biome check --write .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts",

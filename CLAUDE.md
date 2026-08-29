@@ -31,6 +31,17 @@
 10. 一時ファイル・雛形生成物はリポジトリ (`estateresearch/`) の外に置かない。
 11. 新しいテーブルを追加するときは `.claude/skills/new-table/SKILL.md` の手順に従う。
 
+## Vibe coding 衛生ルール
+
+`git commit` 実行時は `.claude/hooks/quality-check.sh` が自動でシークレットスキャン + `pnpm check` + `pnpm typecheck` + `pnpm test` を実行しブロックする（PreToolUse フック）。それに加えて以下を徹底する。
+
+1. **差分は必ず自分で読んでから commit する。** 生成しただけの大きな diff をそのまま commit しない。1 commit = 1つの論理的な変更に保つ。
+2. **失敗したチェックを緩めて通さない。** テストを消す/skip する、lintルールを無効化する、型を `any` で握りつぶす等で「グリーンにする」のは禁止。原因を直すか、ユーザーに確認する。
+3. **依存を追加する前に、同等の機能が既存依存（shadcn/ui, zod, react-hook-form 等）で足りないか確認する。** 増やしたら `pnpm-lock.yaml` の変更も commit に含める。
+4. **認証・データアクセス・決済等セキュリティに関わる変更は特に慎重に。** 変更後は `code-review` skill や `claude-security` プラグイン（オンデマンド）でのセルフレビューを検討する。
+5. **わからない/自信がない実装を断定的に「動きます」と報告しない。** 実際に `pnpm dev` やテストで動作確認してから報告する。
+6. **秘密情報（APIキー・トークン・パスワード）をコード中にハードコードしない。** 迷ったら `.env.local` に置き、`src/lib/env.ts` 経由で読む。
+
 ## RLS チェックリスト（新テーブル追加時）
 
 - [ ] `enable row level security` した
