@@ -18,10 +18,15 @@ insert into public.regions (name, sort_order) values
   ('中国地区', 10),
   ('九州地区', 11);
 
-insert into public.reits (securities_code, name, sponsor, primary_use_type, fiscal_month) values
-  ('3269', 'アドバンス・レジデンス投資法人', '伊藤忠グループ', '住居特化型', 2),
-  ('8985', 'ジャパン・ホテル・リート投資法人', 'オリックスグループ', 'ホテル特化型', 12),
-  ('8963', '住友不動産投資法人', '住友不動産グループ', 'オフィス・住居複合型', 6);
+-- edinet_code values are the real EDINET codes for these securities codes
+-- (see scripts/sync/data/reit-fund-codes.csv) so the fudosandb.jp sync's
+-- upsert (onConflict: edinet_code) recognizes these as already-existing
+-- rows instead of colliding with them on the securities_code unique
+-- constraint.
+insert into public.reits (securities_code, name, sponsor, primary_use_type, fiscal_month, edinet_code) values
+  ('3269', 'アドバンス・レジデンス投資法人', '伊藤忠グループ', '住居特化型', 2, 'E24347'),
+  ('8985', 'ジャパン・ホテル・リート投資法人', 'オリックスグループ', 'ホテル特化型', 12, 'E14273'),
+  ('8963', 'インヴィンシブル投資法人', 'フォートレス・グループ', 'ホテル・住居複合型', 6, 'E13833');
 
 insert into public.reit_market_snapshots (
   reit_id, snapshot_date, unit_price_yen, unit_price_change_yen, unit_price_change_pct,
