@@ -44,6 +44,7 @@
 7. **`main` に直接 commit しない。** 必ず feature branch を切って PR を出す（`.claude/hooks/quality-check.sh` が `main`/`master` 上の commit をブロックする）。作業を始める前に `git checkout -b <name>`。
 8. **force-push は禁止。**（`settings.json` の deny で機械的にブロック済み）履歴を書き換えたい場合はユーザーに確認する。
 9. **既存テーブルを変更するときは `.claude/skills/alter-table/SKILL.md` の Expand/Contract パターンに従う。** 本番ユーザーがいる前提になったら、列追加→バックフィル→制約強化を単一マイグレーションにまとめない。
+10. **非自明な問題を解決したら、再利用可能そうならskill化を提案する。**（[Hermes Agent](https://hermes-agent.org/ja/) の自動スキル作成に倣った運用。SKILL.mdはagentskills.ioの共通形式なので、他所で作られたスキルもそのまま `.claude/skills/` に置ける。）試行錯誤の末に解けた・同じパターンが今後も出てきそうな問題を解決したら、作業を終える前に「これを `.claude/skills/<name>/SKILL.md` として保存しますか？」とユーザーに確認する。承諾されたら `skill-creator` プラグインで作成する。単純な一度きりの修正では提案しない。
 
 ## コンポーネント設計・コード品質の原則
 
