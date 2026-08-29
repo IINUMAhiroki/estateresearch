@@ -8,7 +8,7 @@ export async function createNote(formData: FormData) {
   const parsed = createNoteSchema.safeParse({
     title: formData.get("title"),
     body: formData.get("body") ?? "",
-    propertyId: formData.get("propertyId") ?? "",
+    unitId: formData.get("unitId") ?? "",
   });
 
   if (!parsed.success) {
@@ -31,7 +31,7 @@ export async function createNote(formData: FormData) {
   const { error } = await supabase.from("research_notes").insert({
     title: parsed.data.title,
     body: parsed.data.body,
-    property_id: parsed.data.propertyId || null,
+    unit_id: parsed.data.unitId || null,
   });
 
   if (error) {
