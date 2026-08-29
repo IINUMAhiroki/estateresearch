@@ -14,7 +14,11 @@
       "Read(./.env.*)",
       "Bash(supabase db push*)",
       "Bash(vercel --prod*)",
-      "Bash(vercel env add*)"
+      "Bash(vercel env add*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f)"
     ]
   },
   "hooks": {
@@ -38,6 +42,10 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/migration-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/format-on-save.sh"
           }
         ]
       }
