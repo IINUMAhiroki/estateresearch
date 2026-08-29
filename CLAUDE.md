@@ -57,6 +57,10 @@
 8. **非同期データ取得を伴うページを追加するときは、Next.js の `loading.tsx` / `error.tsx` 規約を使う。** 独自のローディング/エラー状態管理を先に書かない。
 9. **関数・コンポーネントは単一責任に保つ。** 1つの関数が「取得して」「加工して」「表示する」を全部やっていたら分割を検討する。
 
+## 利用プラグイン
+
+`supabase`/`vercel`（MCP）、`security-guidance`（commit/pushの自動セキュリティレビュー）、`claude-security`（オンデマンドdeep scan）、`frontend-design`（UI実装時）、`typescript-lsp`、`claude-md-management`（このファイルの鮮度維持）、`pr-review-toolkit`（PRごとのレビュー）、`hookify`（新しいフックが必要になったら会話から生成）、`skill-creator`（新しいskillを作る/既存skillを改善する）。
+
 ## RLS チェックリスト（新テーブル追加時）
 
 - [ ] `enable row level security` した
