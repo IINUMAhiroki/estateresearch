@@ -61,13 +61,14 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 -- =========================================================
--- Real-estate domain (マンション). Public master data, read-only to
--- authenticated users. Writes happen only via migration/seed/service role
--- (future ETL job), never through the app's own user-facing API surface.
+-- J-REIT domain. This app only tracks properties that are (or were)
+-- securitized/held by a J-REIT — no consumer/individual listings. Public
+-- master data, read-only to authenticated users; writes happen only via
+-- migration/seed/service role (future ingestion job).
 -- =========================================================
 
 -- ---------------------------------------------------------
--- sources: ingestion source master (suumo, athome, manual, ...)
+-- sources: ingestion source master (japan_reit_com, manual, ...)
 -- ---------------------------------------------------------
 create table public.sources (
   id uuid primary key default gen_random_uuid(),
@@ -92,345 +93,295 @@ create trigger sources_updated_at
   for each row execute function public.set_updated_at();
 
 -- ---------------------------------------------------------
--- agencies: 仲介業者マスタ
+-- regions: 地域区分マスタ (japan-reit.com の11区分に準拠)
 -- ---------------------------------------------------------
-create table public.agencies (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  license_number text,
-  phone text,
-  address text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create unique index agencies_license_number_key
-  on public.agencies (license_number)
-  where license_number is not null;
-
-alter table public.agencies enable row level security;
-
-create policy "agencies_select_authenticated"
-  on public.agencies for select
-  to authenticated
-  using (true);
-
-revoke insert, update, delete on public.agencies from anon, authenticated;
-
-create trigger agencies_updated_at
-  before update on public.agencies
-  for each row execute function public.set_updated_at();
-
--- ---------------------------------------------------------
--- stations: 駅マスタ
--- ---------------------------------------------------------
-create table public.stations (
-  id uuid primary key default gen_random_uuid(),
-  line_name text not null,
-  station_name text not null,
-  company_name text,
-  created_at timestamptz not null default now(),
-  unique (line_name, station_name)
-);
-
-alter table public.stations enable row level security;
-
-create policy "stations_select_authenticated"
-  on public.stations for select
-  to authenticated
-  using (true);
-
-revoke insert, update, delete on public.stations from anon, authenticated;
-
--- ---------------------------------------------------------
--- buildings: 建物マスタ（マンション）
--- ---------------------------------------------------------
-create table public.buildings (
-  id uuid primary key default gen_random_uuid(),
-  building_type text not null default 'mansion' check (building_type in ('mansion')),
-  name text not null,
-  name_normalized text,
-  address text not null,
-  normalized_address text,
-  prefecture text,
-  city text,
-  latitude numeric(9, 6),
-  longitude numeric(9, 6),
-  total_units int,
-  structure text check (structure in ('rc', 'src', 'steel', 'light_steel', 'wood', 'other')),
-  floors_above int,
-  floors_below int,
-  built_year int,
-  built_month int check (built_month between 1 and 12),
-  land_rights text check (land_rights in ('ownership', 'leasehold', 'other')),
-  use_zone text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-alter table public.buildings enable row level security;
-
-create policy "buildings_select_authenticated"
-  on public.buildings for select
-  to authenticated
-  using (true);
-
-revoke insert, update, delete on public.buildings from anon, authenticated;
-
-create trigger buildings_updated_at
-  before update on public.buildings
-  for each row execute function public.set_updated_at();
-
--- building <-> station (M:N). A building can be near multiple stations/lines.
-create table public.building_stations (
-  building_id uuid not null references public.buildings (id) on delete cascade,
-  station_id uuid not null references public.stations (id) on delete cascade,
-  walk_minutes int,
-  distance_meters int,
-  is_primary boolean not null default false,
-  created_at timestamptz not null default now(),
-  primary key (building_id, station_id)
-);
-
-alter table public.building_stations enable row level security;
-
-create policy "building_stations_select_authenticated"
-  on public.building_stations for select
-  to authenticated
-  using (true);
-
-revoke insert, update, delete on public.building_stations from anon, authenticated;
-
--- ---------------------------------------------------------
--- features: 設備・特徴タグ（boolean列を増やさず、行として管理）
--- ---------------------------------------------------------
-create table public.features (
+create table public.regions (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
-  scope text not null check (scope in ('building', 'unit')),
-  created_at timestamptz not null default now()
-);
-
-alter table public.features enable row level security;
-
-create policy "features_select_authenticated"
-  on public.features for select
-  to authenticated
-  using (true);
-
-revoke insert, update, delete on public.features from anon, authenticated;
-
-create table public.building_features (
-  building_id uuid not null references public.buildings (id) on delete cascade,
-  feature_id uuid not null references public.features (id) on delete cascade,
-  created_at timestamptz not null default now(),
-  primary key (building_id, feature_id)
-);
-
-alter table public.building_features enable row level security;
-
-create policy "building_features_select_authenticated"
-  on public.building_features for select
-  to authenticated
-  using (true);
-
-revoke insert, update, delete on public.building_features from anon, authenticated;
-
--- ---------------------------------------------------------
--- units: 専有部（部屋）マスタ。階数・面積など「引っ越さない限り
--- 変わらない」物理属性のみを持つ。掲載イベントは listings で別管理。
--- ---------------------------------------------------------
-create table public.units (
-  id uuid primary key default gen_random_uuid(),
-  building_id uuid not null references public.buildings (id) on delete cascade,
-  room_number text,
-  floor_number int,
-  floor_area_sqm numeric(6, 2),
-  balcony_area_sqm numeric(6, 2),
-  layout text,
-  direction text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create unique index units_building_room_key
-  on public.units (building_id, room_number)
-  where room_number is not null;
-
-create index units_building_id_idx on public.units (building_id);
-
-alter table public.units enable row level security;
-
-create policy "units_select_authenticated"
-  on public.units for select
-  to authenticated
-  using (true);
-
-revoke insert, update, delete on public.units from anon, authenticated;
-
-create trigger units_updated_at
-  before update on public.units
-  for each row execute function public.set_updated_at();
-
-create table public.unit_features (
-  unit_id uuid not null references public.units (id) on delete cascade,
-  feature_id uuid not null references public.features (id) on delete cascade,
-  created_at timestamptz not null default now(),
-  primary key (unit_id, feature_id)
-);
-
-alter table public.unit_features enable row level security;
-
-create policy "unit_features_select_authenticated"
-  on public.unit_features for select
-  to authenticated
-  using (true);
-
-revoke insert, update, delete on public.unit_features from anon, authenticated;
-
--- ---------------------------------------------------------
--- listings: 掲載（商流イベント）。同じ unit が掲載終了→再掲載され
--- れば新しい行になり、一般媒介で複数業者が同時に扱えば同じ unit に
--- 複数の listings 行が並行して存在しうる。
--- ---------------------------------------------------------
-create table public.listings (
-  id uuid primary key default gen_random_uuid(),
-  unit_id uuid not null references public.units (id) on delete cascade,
-  agency_id uuid references public.agencies (id) on delete set null,
-  transaction_type text check (
-    transaction_type in (
-      'seller', 'agent', 'mediation_general',
-      'mediation_exclusive', 'mediation_exclusive_specified'
-    )
-  ),
-  current_price_yen bigint,
-  current_status text not null default 'published' check (
-    current_status in ('published', 'application_received', 'contracted', 'closed', 'suspended')
-  ),
-  management_fee_yen bigint,
-  repair_reserve_fund_yen bigint,
-  occupancy_status text check (occupancy_status in ('vacant', 'owner_occupied', 'tenant_occupied', 'other')),
-  handover_date date,
-  handover_note text,
-  first_listed_at timestamptz,
-  last_confirmed_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create index listings_unit_id_idx on public.listings (unit_id);
-create index listings_agency_id_idx on public.listings (agency_id);
-
-alter table public.listings enable row level security;
-
-create policy "listings_select_authenticated"
-  on public.listings for select
-  to authenticated
-  using (true);
-
-revoke insert, update, delete on public.listings from anon, authenticated;
-
-create trigger listings_updated_at
-  before update on public.listings
-  for each row execute function public.set_updated_at();
-
--- current_price_yen / current_status above are a cache of the latest history
--- row below; the append-only history tables are the source of truth.
-
--- ---------------------------------------------------------
--- price_history / status_history: append-only event log per listing.
--- ---------------------------------------------------------
-create table public.price_history (
-  id uuid primary key default gen_random_uuid(),
-  listing_id uuid not null references public.listings (id) on delete cascade,
-  price_yen bigint not null,
-  effective_at timestamptz not null default now(),
-  source_id uuid references public.sources (id) on delete set null,
-  note text,
-  created_at timestamptz not null default now()
-);
-
-create index price_history_listing_id_idx on public.price_history (listing_id);
-
-alter table public.price_history enable row level security;
-
-create policy "price_history_select_authenticated"
-  on public.price_history for select
-  to authenticated
-  using (true);
-
-revoke insert, update, delete on public.price_history from anon, authenticated;
-
-create table public.status_history (
-  id uuid primary key default gen_random_uuid(),
-  listing_id uuid not null references public.listings (id) on delete cascade,
-  status text not null check (
-    status in ('published', 'application_received', 'contracted', 'closed', 'suspended')
-  ),
-  effective_at timestamptz not null default now(),
-  source_id uuid references public.sources (id) on delete set null,
-  note text,
-  created_at timestamptz not null default now()
-);
-
-create index status_history_listing_id_idx on public.status_history (listing_id);
-
-alter table public.status_history enable row level security;
-
-create policy "status_history_select_authenticated"
-  on public.status_history for select
-  to authenticated
-  using (true);
-
-revoke insert, update, delete on public.status_history from anon, authenticated;
-
--- ---------------------------------------------------------
--- listing_images: 複数枚・順序付き画像
--- ---------------------------------------------------------
-create table public.listing_images (
-  id uuid primary key default gen_random_uuid(),
-  listing_id uuid not null references public.listings (id) on delete cascade,
-  url text not null,
-  image_type text check (
-    image_type in ('exterior', 'floor_plan', 'room', 'view', 'common_area', 'map', 'other')
-  ),
   sort_order int not null default 0,
-  caption text,
   created_at timestamptz not null default now()
 );
 
-create index listing_images_listing_id_idx on public.listing_images (listing_id);
+alter table public.regions enable row level security;
 
-alter table public.listing_images enable row level security;
-
-create policy "listing_images_select_authenticated"
-  on public.listing_images for select
+create policy "regions_select_authenticated"
+  on public.regions for select
   to authenticated
   using (true);
 
-revoke insert, update, delete on public.listing_images from anon, authenticated;
+revoke insert, update, delete on public.regions from anon, authenticated;
 
 -- ---------------------------------------------------------
--- raw_listings: ingestion/dedup layer. One row per (source, listing,
--- scrape). Deliberately NOT exposed to anon/authenticated at all — this is
--- pre-cleansing, noisy, portal-native data; only a future service-role ETL
--- job reads/writes it. An explicit deny-all policy documents that this is
--- intentional (RLS enabled + zero policies would read the same to Postgres,
--- but this is self-documenting and satisfies "every table has a policy").
+-- reits: 投資法人マスタ
 -- ---------------------------------------------------------
-create table public.raw_listings (
+create table public.reits (
+  id uuid primary key default gen_random_uuid(),
+  securities_code text not null unique,
+  name text not null,
+  sponsor text,
+  asset_manager text,
+  primary_use_type text,
+  fiscal_month int check (fiscal_month between 1 and 12),
+  listed_at date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.reits enable row level security;
+
+create policy "reits_select_authenticated"
+  on public.reits for select
+  to authenticated
+  using (true);
+
+revoke insert, update, delete on public.reits from anon, authenticated;
+
+create trigger reits_updated_at
+  before update on public.reits
+  for each row execute function public.set_updated_at();
+
+-- ---------------------------------------------------------
+-- reit_market_snapshots: 銘柄ごとの日次market指標 (append-only)
+-- 投資口価格・分配金利回り・NAV倍率・時価総額などは日々変動するため、
+-- reits 本体には持たせずスナップショットの積み上げで持つ。
+-- ---------------------------------------------------------
+create table public.reit_market_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  reit_id uuid not null references public.reits (id) on delete cascade,
+  snapshot_date date not null,
+  unit_price_yen bigint,
+  unit_price_change_yen bigint,
+  unit_price_change_pct numeric(5, 2),
+  distribution_yield_pct numeric(5, 2),
+  nav_per_unit_yen bigint,
+  nav_multiple numeric(5, 2),
+  market_cap_yen bigint,
+  trading_volume_units bigint,
+  source_id uuid references public.sources (id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (reit_id, snapshot_date)
+);
+
+create index reit_market_snapshots_reit_id_idx on public.reit_market_snapshots (reit_id);
+
+alter table public.reit_market_snapshots enable row level security;
+
+create policy "reit_market_snapshots_select_authenticated"
+  on public.reit_market_snapshots for select
+  to authenticated
+  using (true);
+
+revoke insert, update, delete on public.reit_market_snapshots from anon, authenticated;
+
+-- ---------------------------------------------------------
+-- reit_distributions: 決算期ごとの1口当たり分配金 実績/予想 (append-only)
+-- 予想は改定されうるため、期・実績予想フラグの組でユニーク制約はかけず、
+-- 「最新行が現在値」という履歴テーブルの流儀に合わせる。
+-- ---------------------------------------------------------
+create table public.reit_distributions (
+  id uuid primary key default gen_random_uuid(),
+  reit_id uuid not null references public.reits (id) on delete cascade,
+  fiscal_period_end date not null,
+  distribution_per_unit_yen bigint not null,
+  is_forecast boolean not null default false,
+  source_id uuid references public.sources (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index reit_distributions_reit_id_period_idx
+  on public.reit_distributions (reit_id, fiscal_period_end);
+
+alter table public.reit_distributions enable row level security;
+
+create policy "reit_distributions_select_authenticated"
+  on public.reit_distributions for select
+  to authenticated
+  using (true);
+
+revoke insert, update, delete on public.reit_distributions from anon, authenticated;
+
+-- ---------------------------------------------------------
+-- reit_portfolio_metrics: 決算期ごとの財務・ポートフォリオ指標 (append-only)
+-- reit_market_snapshots (日次の市場データ) とは更新頻度が異なるため別テーブル。
+-- ランキングページ(資産規模・保有棟数・平均築年数・NOI利回り・含み損益率・
+-- 年額分配金・ROE・有利子負債比率)に対応。
+-- ---------------------------------------------------------
+create table public.reit_portfolio_metrics (
+  id uuid primary key default gen_random_uuid(),
+  reit_id uuid not null references public.reits (id) on delete cascade,
+  fiscal_period_end date not null,
+  asset_size_yen bigint,
+  property_count int,
+  average_building_age_years numeric(5, 2),
+  noi_yield_pct numeric(5, 2),
+  unrealized_gain_loss_pct numeric(5, 2),
+  annual_distribution_yen bigint,
+  roe_pct numeric(5, 2),
+  interest_bearing_debt_ratio_pct numeric(5, 2),
+  source_id uuid references public.sources (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index reit_portfolio_metrics_reit_id_period_idx
+  on public.reit_portfolio_metrics (reit_id, fiscal_period_end);
+
+alter table public.reit_portfolio_metrics enable row level security;
+
+create policy "reit_portfolio_metrics_select_authenticated"
+  on public.reit_portfolio_metrics for select
+  to authenticated
+  using (true);
+
+revoke insert, update, delete on public.reit_portfolio_metrics from anon, authenticated;
+
+-- ---------------------------------------------------------
+-- properties: 物件マスタ (REITが取得・保有・売却する実物資産)
+-- ---------------------------------------------------------
+create table public.properties (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  address text not null,
+  prefecture text,
+  region_id uuid references public.regions (id) on delete set null,
+  use_type text not null check (
+    use_type in ('residential', 'office', 'retail', 'logistics', 'hotel', 'healthcare', 'land', 'other')
+  ),
+  built_year int,
+  total_floor_area_sqm numeric(10, 2),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index properties_region_id_idx on public.properties (region_id);
+create index properties_use_type_idx on public.properties (use_type);
+
+alter table public.properties enable row level security;
+
+create policy "properties_select_authenticated"
+  on public.properties for select
+  to authenticated
+  using (true);
+
+revoke insert, update, delete on public.properties from anon, authenticated;
+
+create trigger properties_updated_at
+  before update on public.properties
+  for each row execute function public.set_updated_at();
+
+-- ---------------------------------------------------------
+-- acquisitions: 取得実績 (append-only event log)
+-- ownership_ratio supports 准共有持分 — multiple REITs can each hold a
+-- percentage stake in the same property.
+-- ---------------------------------------------------------
+create table public.acquisitions (
+  id uuid primary key default gen_random_uuid(),
+  property_id uuid not null references public.properties (id) on delete cascade,
+  reit_id uuid not null references public.reits (id) on delete cascade,
+  acquisition_date date not null,
+  acquisition_price_yen bigint,
+  acquisition_cap_rate numeric(5, 3),
+  ownership_ratio numeric(5, 2) not null default 100.00 check (
+    ownership_ratio > 0 and ownership_ratio <= 100
+  ),
+  seller text,
+  source_id uuid references public.sources (id) on delete set null,
+  note text,
+  created_at timestamptz not null default now()
+);
+
+create index acquisitions_property_id_idx on public.acquisitions (property_id);
+create index acquisitions_reit_id_idx on public.acquisitions (reit_id);
+
+alter table public.acquisitions enable row level security;
+
+create policy "acquisitions_select_authenticated"
+  on public.acquisitions for select
+  to authenticated
+  using (true);
+
+revoke insert, update, delete on public.acquisitions from anon, authenticated;
+
+-- ---------------------------------------------------------
+-- dispositions: 売却実績 (append-only event log)
+-- ---------------------------------------------------------
+create table public.dispositions (
+  id uuid primary key default gen_random_uuid(),
+  property_id uuid not null references public.properties (id) on delete cascade,
+  reit_id uuid not null references public.reits (id) on delete cascade,
+  disposition_date date not null,
+  disposition_price_yen bigint,
+  gain_loss_yen bigint,
+  ownership_ratio numeric(5, 2) not null default 100.00 check (
+    ownership_ratio > 0 and ownership_ratio <= 100
+  ),
+  buyer text,
+  source_id uuid references public.sources (id) on delete set null,
+  note text,
+  created_at timestamptz not null default now()
+);
+
+create index dispositions_property_id_idx on public.dispositions (property_id);
+create index dispositions_reit_id_idx on public.dispositions (reit_id);
+
+alter table public.dispositions enable row level security;
+
+create policy "dispositions_select_authenticated"
+  on public.dispositions for select
+  to authenticated
+  using (true);
+
+revoke insert, update, delete on public.dispositions from anon, authenticated;
+
+-- ---------------------------------------------------------
+-- property_holdings: current net ownership per (property, reit), derived
+-- from acquisitions minus dispositions. A view, not a cache table, so it
+-- can never drift from the append-only event logs above.
+-- ---------------------------------------------------------
+create view public.property_holdings
+with (security_invoker = true) as
+select
+  a.property_id,
+  a.reit_id,
+  sum(a.ownership_ratio) - coalesce(d.disposed_ratio, 0) as net_ownership_ratio
+from public.acquisitions a
+left join (
+  select property_id, reit_id, sum(ownership_ratio) as disposed_ratio
+  from public.dispositions
+  group by property_id, reit_id
+) d on d.property_id = a.property_id and d.reit_id = a.reit_id
+group by a.property_id, a.reit_id, d.disposed_ratio
+having sum(a.ownership_ratio) - coalesce(d.disposed_ratio, 0) > 0;
+
+revoke all on public.property_holdings from anon;
+grant select on public.property_holdings to authenticated;
+
+-- ---------------------------------------------------------
+-- raw_transactions: ingestion/dedup layer. One row per scraped
+-- acquisition/disposition record. Deliberately NOT exposed to
+-- anon/authenticated at all — pre-cleansing, portal-native data; only a
+-- future service-role ETL job reads/writes it. An explicit deny-all policy
+-- documents that this is intentional.
+-- ---------------------------------------------------------
+create table public.raw_transactions (
   id uuid primary key default gen_random_uuid(),
   source_id uuid not null references public.sources (id) on delete cascade,
-  source_listing_id text not null,
+  source_record_id text,
   scraped_at timestamptz not null default now(),
   source_url text,
-  raw_building_name text,
+  transaction_type text not null check (transaction_type in ('acquisition', 'disposition')),
+  raw_reit_name text,
+  raw_property_name text,
   raw_address text,
+  raw_use_type text,
+  raw_date date,
   raw_price_yen bigint,
+  raw_cap_rate numeric,
+  raw_gain_loss_yen bigint,
   raw_payload jsonb not null default '{}'::jsonb,
-  matched_building_id uuid references public.buildings (id) on delete set null,
-  matched_unit_id uuid references public.units (id) on delete set null,
-  matched_listing_id uuid references public.listings (id) on delete set null,
+  matched_property_id uuid references public.properties (id) on delete set null,
+  matched_reit_id uuid references public.reits (id) on delete set null,
+  matched_acquisition_id uuid references public.acquisitions (id) on delete set null,
+  matched_disposition_id uuid references public.dispositions (id) on delete set null,
   match_status text not null default 'unmatched' check (
     match_status in ('unmatched', 'auto_matched', 'manual_matched', 'rejected')
   ),
@@ -438,33 +389,32 @@ create table public.raw_listings (
   matched_at timestamptz,
   matched_by uuid references auth.users (id) on delete set null,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (source_id, source_listing_id, scraped_at)
+  updated_at timestamptz not null default now()
 );
 
-alter table public.raw_listings enable row level security;
+alter table public.raw_transactions enable row level security;
 
-create policy "raw_listings_no_access"
-  on public.raw_listings for all
+create policy "raw_transactions_no_access"
+  on public.raw_transactions for all
   to authenticated, anon
   using (false)
   with check (false);
 
-revoke all on public.raw_listings from anon, authenticated;
+revoke all on public.raw_transactions from anon, authenticated;
 
-create trigger raw_listings_updated_at
-  before update on public.raw_listings
+create trigger raw_transactions_updated_at
+  before update on public.raw_transactions
   for each row execute function public.set_updated_at();
 
 -- =========================================================
--- research_notes: private per-user data. Notes are anchored to a unit
--- (a physical room), not a listing instance, so a user's memo carries
--- across relisting/price-change episodes for the same room.
+-- research_notes: private per-user data, anchored to a property (the
+-- whole building/asset is the unit of analysis for a REIT investor, unlike
+-- consumer real estate where a single unit/room would be the target).
 -- =========================================================
 create table public.research_notes (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  unit_id uuid references public.units (id) on delete set null,
+  property_id uuid references public.properties (id) on delete set null,
   title text not null check (char_length(title) between 1 and 200),
   body text not null default '',
   created_at timestamptz not null default now(),
@@ -497,7 +447,7 @@ create policy "notes_delete_own"
 revoke all on public.research_notes from anon;
 
 create index research_notes_owner_id_idx on public.research_notes (owner_id);
-create index research_notes_unit_id_idx on public.research_notes (unit_id);
+create index research_notes_property_id_idx on public.research_notes (property_id);
 
 create trigger research_notes_updated_at
   before update on public.research_notes

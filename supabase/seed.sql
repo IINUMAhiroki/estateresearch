@@ -3,97 +3,121 @@
 
 insert into public.sources (code, name, base_url) values
   ('manual', '手動入力', null),
-  ('suumo', 'SUUMO', 'https://suumo.jp'),
-  ('athome', 'at home', 'https://www.athome.co.jp');
+  ('japan_reit_com', 'JAPAN-REIT.COM', 'https://www.japan-reit.com');
 
-insert into public.agencies (name, license_number, phone) values
-  ('サンプル不動産株式会社', '東京都知事(1)第12345号', '03-1234-5678');
+insert into public.regions (name, sort_order) values
+  ('東京都主要５区', 1),
+  ('東京２３区', 2),
+  ('関東地区', 3),
+  ('北海道地区', 4),
+  ('東北地区', 5),
+  ('北陸地区', 6),
+  ('中部地区', 7),
+  ('近畿地区', 8),
+  ('四国地区', 9),
+  ('中国地区', 10),
+  ('九州地区', 11);
 
-insert into public.stations (line_name, station_name, company_name) values
-  ('JR山手線', '渋谷', 'JR東日本'),
-  ('東京メトロ銀座線', '渋谷', '東京メトロ'),
-  ('JR東海道本線', '横浜', 'JR東日本');
+insert into public.reits (securities_code, name, sponsor, primary_use_type, fiscal_month) values
+  ('3269', 'アドバンス・レジデンス投資法人', '伊藤忠グループ', '住居特化型', 2),
+  ('8985', 'ジャパン・ホテル・リート投資法人', 'オリックスグループ', 'ホテル特化型', 12),
+  ('8963', '住友不動産投資法人', '住友不動産グループ', 'オフィス・住居複合型', 6);
 
-insert into public.features (name, scope) values
-  ('オートロック', 'building'),
-  ('宅配ボックス', 'building'),
-  ('エレベーター', 'building'),
-  ('24時間管理', 'building'),
-  ('ペット可', 'unit'),
-  ('バルコニー', 'unit'),
-  ('駐輪場', 'building');
+insert into public.reit_market_snapshots (
+  reit_id, snapshot_date, unit_price_yen, unit_price_change_yen, unit_price_change_pct,
+  distribution_yield_pct, nav_per_unit_yen, nav_multiple, market_cap_yen,
+  trading_volume_units, source_id
+)
+select
+  r.id, current_date, 145200, -800, -0.55, 4.26, 128500, 1.13, 414154250400, 12300,
+  (select id from public.sources where code = 'japan_reit_com')
+from public.reits r where r.securities_code = '3269';
 
-insert into public.buildings (
-  id, building_type, name, address, prefecture, city,
-  total_units, structure, floors_above, built_year, built_month, land_rights
-) values
+insert into public.reit_portfolio_metrics (
+  reit_id, fiscal_period_end, asset_size_yen, property_count, average_building_age_years,
+  noi_yield_pct, unrealized_gain_loss_pct, annual_distribution_yen, roe_pct,
+  interest_bearing_debt_ratio_pct, source_id
+)
+select
+  r.id, '2025-08-31', 480500000000, 289, 18.4, 5.2, 22.8, 6140, 3.1, 42.5,
+  (select id from public.sources where code = 'japan_reit_com')
+from public.reits r where r.securities_code = '3269';
+
+insert into public.reit_distributions (reit_id, fiscal_period_end, distribution_per_unit_yen, is_forecast, source_id)
+select
+  r.id, '2026-02-28', 3090, true,
+  (select id from public.sources where code = 'japan_reit_com')
+from public.reits r where r.securities_code = '3269';
+
+insert into public.reit_distributions (reit_id, fiscal_period_end, distribution_per_unit_yen, is_forecast, source_id)
+select
+  r.id, '2025-08-31', 3050, false,
+  (select id from public.sources where code = 'japan_reit_com')
+from public.reits r where r.securities_code = '3269';
+
+insert into public.properties (id, name, address, prefecture, region_id, use_type, built_year) values
   (
-    '00000000-0000-0000-0000-000000000001', 'mansion', 'サンプルマンション A棟',
-    '東京都渋谷区1-1-1', '東京都', '渋谷区',
-    48, 'rc', 12, 2015, 4, 'ownership'
+    '00000000-0000-0000-0000-000000000001', 'サンプルレジデンス渋谷',
+    '東京都渋谷区1-1-1', '東京都',
+    (select id from public.regions where name = '東京都主要５区'),
+    'residential', 2015
   ),
   (
-    '00000000-0000-0000-0000-000000000002', 'mansion', 'サンプルマンション B棟',
-    '神奈川県横浜市中区3-3-3', '神奈川県', '横浜市中区',
-    30, 'src', 8, 2008, 9, 'ownership'
+    '00000000-0000-0000-0000-000000000002', 'サンプルオフィスビル大阪',
+    '大阪府大阪市北区2-2-2', '大阪府',
+    (select id from public.regions where name = '近畿地区'),
+    'office', 2005
+  ),
+  (
+    '00000000-0000-0000-0000-000000000003', 'サンプル物流センター横浜',
+    '神奈川県横浜市中区3-3-3', '神奈川県',
+    (select id from public.regions where name = '関東地区'),
+    'logistics', 2018
   );
 
-insert into public.building_stations (building_id, station_id, walk_minutes, is_primary)
-select '00000000-0000-0000-0000-000000000001', id, 8, true
-from public.stations where station_name = '渋谷' and line_name = 'JR山手線';
-
-insert into public.building_stations (building_id, station_id, walk_minutes, is_primary)
-select '00000000-0000-0000-0000-000000000002', id, 10, true
-from public.stations where station_name = '横浜';
-
-insert into public.building_features (building_id, feature_id)
-select '00000000-0000-0000-0000-000000000001', id from public.features where name in ('オートロック', '宅配ボックス', 'エレベーター');
-
-insert into public.units (
-  id, building_id, room_number, floor_number, floor_area_sqm, layout, direction
-) values
-  ('00000000-0000-0000-0000-000000000101', '00000000-0000-0000-0000-000000000001', '501', 5, 68.5, '3LDK', '南'),
-  ('00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000002', '203', 2, 55.2, '2LDK', '東');
-
-insert into public.unit_features (unit_id, feature_id)
-select '00000000-0000-0000-0000-000000000101', id from public.features where name in ('ペット可', 'バルコニー');
-
-insert into public.listings (
-  id, unit_id, agency_id, transaction_type, current_price_yen, current_status,
-  management_fee_yen, repair_reserve_fund_yen, occupancy_status, first_listed_at, last_confirmed_at
+insert into public.acquisitions (
+  property_id, reit_id, acquisition_date, acquisition_price_yen, acquisition_cap_rate, ownership_ratio, source_id
 )
 select
-  '00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000101',
-  a.id, 'mediation_general', 68000000, 'published',
-  18000, 15000, 'vacant', now() - interval '30 days', now()
-from public.agencies a limit 1;
+  '00000000-0000-0000-0000-000000000001',
+  (select id from public.reits where securities_code = '3269'),
+  '2024-04-01', 6800000000, 4.200, 100.00,
+  (select id from public.sources where code = 'japan_reit_com');
 
-insert into public.listings (
-  id, unit_id, agency_id, transaction_type, current_price_yen, current_status,
-  management_fee_yen, repair_reserve_fund_yen, occupancy_status, first_listed_at, last_confirmed_at
+insert into public.acquisitions (
+  property_id, reit_id, acquisition_date, acquisition_price_yen, acquisition_cap_rate, ownership_ratio, source_id
 )
 select
-  '00000000-0000-0000-0000-000000000202', '00000000-0000-0000-0000-000000000102',
-  a.id, 'agent', 42000000, 'published',
-  12000, 9000, 'owner_occupied', now() - interval '10 days', now()
-from public.agencies a limit 1;
+  '00000000-0000-0000-0000-000000000002',
+  (select id from public.reits where securities_code = '8963'),
+  '2022-09-15', 12000000000, 4.500, 50.00,
+  (select id from public.sources where code = 'japan_reit_com');
 
-insert into public.price_history (listing_id, price_yen, effective_at, source_id, note)
-select '00000000-0000-0000-0000-000000000201', 70000000, now() - interval '30 days', id, '掲載開始時価格'
-from public.sources where code = 'manual';
+-- 准共有: same office building, a second REIT holds the other half.
+insert into public.acquisitions (
+  property_id, reit_id, acquisition_date, acquisition_price_yen, acquisition_cap_rate, ownership_ratio, source_id
+)
+select
+  '00000000-0000-0000-0000-000000000002',
+  (select id from public.reits where securities_code = '3269'),
+  '2022-09-15', 12000000000, 4.500, 50.00,
+  (select id from public.sources where code = 'japan_reit_com');
 
-insert into public.price_history (listing_id, price_yen, effective_at, source_id, note)
-select '00000000-0000-0000-0000-000000000201', 68000000, now() - interval '5 days', id, '値下げ'
-from public.sources where code = 'manual';
+insert into public.acquisitions (
+  property_id, reit_id, acquisition_date, acquisition_price_yen, acquisition_cap_rate, ownership_ratio, source_id
+)
+select
+  '00000000-0000-0000-0000-000000000003',
+  (select id from public.reits where securities_code = '8985'),
+  '2020-01-20', 4200000000, 5.100, 100.00,
+  (select id from public.sources where code = 'japan_reit_com');
 
-insert into public.price_history (listing_id, price_yen, effective_at, source_id)
-select '00000000-0000-0000-0000-000000000202', 42000000, now() - interval '10 days', id
-from public.sources where code = 'manual';
-
-insert into public.status_history (listing_id, status, effective_at, source_id)
-select '00000000-0000-0000-0000-000000000201', 'published', now() - interval '30 days', id
-from public.sources where code = 'manual';
-
-insert into public.status_history (listing_id, status, effective_at, source_id)
-select '00000000-0000-0000-0000-000000000202', 'published', now() - interval '10 days', id
-from public.sources where code = 'manual';
+-- Later disposed by the same REIT that acquired it (logistics center sold).
+insert into public.dispositions (
+  property_id, reit_id, disposition_date, disposition_price_yen, gain_loss_yen, ownership_ratio, source_id
+)
+select
+  '00000000-0000-0000-0000-000000000003',
+  (select id from public.reits where securities_code = '8985'),
+  '2026-02-10', 4600000000, 400000000, 100.00,
+  (select id from public.sources where code = 'japan_reit_com');
