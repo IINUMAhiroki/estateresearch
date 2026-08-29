@@ -8,6 +8,23 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.." || exit 0
 
 run() { mise exec -- "$@"; }
 
+# Branch protection: never let an agent commit straight to main. Forces the
+# feature-branch -> PR -> merge workflow even when nobody's watching.
+current_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+if [ "$current_branch" = "main" ] || [ "$current_branch" = "master" ]; then
+  echo "quality-check: refusing to commit directly to '$current_branch'. Create a feature branch first: git checkout -b <name>." >&2
+  exit 2
+fi
+
+# .env filename guard: block if any real .env file is staged, regardless of
+# .gitignore (covers a stray `git add -f`). .env.example is the only exception.
+staged_files="$(git diff --cached --name-only)"
+if echo "$staged_files" | grep -E '(^|/)\.env($|\..*)' | grep -vE '\.env\.example$' | grep -q .; then
+  echo "quality-check: a .env* file is staged (not .env.example). Unstage it — real env files must never be committed:" >&2
+  echo "$staged_files" | grep -E '(^|/)\.env($|\..*)' | grep -vE '\.env\.example$' >&2
+  exit 2
+fi
+
 # Secret scan: block commits containing likely credentials. Cheap, high-value
 # guardrail against an AI agent accidentally staging a real key.
 staged_diff="$(git diff --cached -U0 -- . ':!pnpm-lock.yaml')"

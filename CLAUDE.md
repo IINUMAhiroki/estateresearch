@@ -41,6 +41,25 @@
 4. **認証・データアクセス・決済等セキュリティに関わる変更は特に慎重に。** 変更後は `code-review` skill や `claude-security` プラグイン（オンデマンド）でのセルフレビューを検討する。
 5. **わからない/自信がない実装を断定的に「動きます」と報告しない。** 実際に `pnpm dev` やテストで動作確認してから報告する。
 6. **秘密情報（APIキー・トークン・パスワード）をコード中にハードコードしない。** 迷ったら `.env.local` に置き、`src/lib/env.ts` 経由で読む。
+7. **`main` に直接 commit しない。** 必ず feature branch を切って PR を出す（`.claude/hooks/quality-check.sh` が `main`/`master` 上の commit をブロックする）。作業を始める前に `git checkout -b <name>`。
+8. **force-push は禁止。**（`settings.json` の deny で機械的にブロック済み）履歴を書き換えたい場合はユーザーに確認する。
+9. **既存テーブルを変更するときは `.claude/skills/alter-table/SKILL.md` の Expand/Contract パターンに従う。** 本番ユーザーがいる前提になったら、列追加→バックフィル→制約強化を単一マイグレーションにまとめない。
+
+## コンポーネント設計・コード品質の原則
+
+1. **Server Component がデフォルト。** `'use client'` はインタラクティブな部分（フォーム、ボタンのonClick等）だけに絞り、ツリーの末端になるべく近い位置に置く。データ取得は Server Component か Server Action で行い、クライアントから直接 Supabase を叩かない。
+2. **`src/components/ui/*` は shadcn の生成物として扱い、直接ビジネスロジックを書き込まない。** 機能固有のコンポーネントは `src/app/(app)/<feature>/` に置くか `src/components/<feature>/` にまとめる。
+3. **AHA（Avoid Hasty Abstractions）。** 同じコードが3箇所目に出てきたら共通化を検討する。1〜2箇所の重複を先回りして抽象化しない。
+4. **Composition over configuration。** 真偽値propsを増やして分岐を増やすより、コンポーネントを分けて組み合わせる（Radix/shadcnの流儀に合わせる）。
+5. **`any` を使わない。** 型が合わないときは型を直すか、型ガードを書く。`as` によるキャストは最終手段。
+6. **マジックナンバー・マジック文字列を埋め込まない。** `USE_TYPE_LABELS`（`properties/page.tsx`）のように、意味のある定数として module scope に出す。
+7. **アクセシビリティは Radix/shadcn の既定に任せ、Biome の a11y lint ルールを無効化しない。** どうしても外す必要がある場合はコメントで理由を書く。
+8. **非同期データ取得を伴うページを追加するときは、Next.js の `loading.tsx` / `error.tsx` 規約を使う。** 独自のローディング/エラー状態管理を先に書かない。
+9. **関数・コンポーネントは単一責任に保つ。** 1つの関数が「取得して」「加工して」「表示する」を全部やっていたら分割を検討する。
+
+## 利用プラグイン
+
+`supabase`/`vercel`（MCP）、`security-guidance`（commit/pushの自動セキュリティレビュー）、`claude-security`（オンデマンドdeep scan）、`frontend-design`（UI実装時）、`typescript-lsp`、`claude-md-management`（このファイルの鮮度維持）、`pr-review-toolkit`（PRごとのレビュー）、`hookify`（新しいフックが必要になったら会話から生成）、`skill-creator`（新しいskillを作る/既存skillを改善する）。
 
 ## RLS チェックリスト（新テーブル追加時）
 
