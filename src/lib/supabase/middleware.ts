@@ -2,7 +2,14 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 import { clientEnv } from "@/lib/env";
 
-const PROTECTED_PREFIXES = ["/notes", "/properties"];
+const PROTECTED_PREFIXES = [
+  "/property-transactions",
+  "/reits",
+  "/rankings",
+  "/distributions",
+  "/portfolio",
+  "/disclosures",
+];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -45,7 +52,9 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (pathname === "/login" && user) {
-    return NextResponse.redirect(new URL("/notes", request.url));
+    return NextResponse.redirect(
+      new URL("/property-transactions", request.url),
+    );
   }
 
   return response;

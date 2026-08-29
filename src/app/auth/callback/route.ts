@@ -13,8 +13,8 @@ export async function GET(request: Request) {
 
   // Only ever redirect within this app — never trust an absolute URL from
   // the query string (open-redirect prevention).
-  const rawNext = searchParams.get("next") ?? "/notes";
-  const next = rawNext.startsWith("/") ? rawNext : "/notes";
+  const rawNext = searchParams.get("next") ?? "/property-transactions";
+  const next = rawNext.startsWith("/") ? rawNext : "/property-transactions";
 
   const supabase = await createClient();
 

@@ -1,37 +1,27 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
+import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
-          <Link href="/notes" className="font-semibold tracking-tight">
-            estateresearch
-          </Link>
-          <nav className="flex items-center gap-4 text-sm">
-            <Link
-              href="/notes"
-              className="text-muted-foreground hover:text-foreground"
-            >
-              マイノート
-            </Link>
-            <Link
-              href="/properties"
-              className="text-muted-foreground hover:text-foreground"
-            >
-              物件マスタ
-            </Link>
-            <form action="/auth/signout" method="post">
-              <Button type="submit" variant="ghost" size="sm">
-                ログアウト
-              </Button>
-            </form>
-          </nav>
-        </div>
-      </header>
-      <main className="mx-auto max-w-3xl px-6 py-8">{children}</main>
-    </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex items-center justify-between gap-2 border-b px-4 py-3">
+          <SidebarTrigger />
+          <form action="/auth/signout" method="post">
+            <Button type="submit" variant="ghost" size="sm">
+              ログアウト
+            </Button>
+          </form>
+        </header>
+        <main className="flex-1 px-6 py-8">{children}</main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

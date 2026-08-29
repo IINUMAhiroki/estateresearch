@@ -4,9 +4,9 @@ import { Trash2 } from "lucide-react";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { deleteNote } from "./actions";
+import { deleteTransaction } from "./actions";
 
-export function DeleteNoteButton({ id }: { id: string }) {
+export function DeleteTransactionButton({ id }: { id: string }) {
   const [pending, startTransition] = useTransition();
 
   return (
@@ -19,7 +19,7 @@ export function DeleteNoteButton({ id }: { id: string }) {
         const formData = new FormData();
         formData.set("id", id);
         startTransition(async () => {
-          const result = await deleteNote(formData);
+          const result = await deleteTransaction(formData);
           if (result.error) {
             toast.error(result.error);
           }
