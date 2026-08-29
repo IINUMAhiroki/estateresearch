@@ -86,6 +86,13 @@ export type Database = {
             foreignKeyName: "acquisitions_reit_id_fkey";
             columns: ["reit_id"];
             isOneToOne: false;
+            referencedRelation: "reit_rankings";
+            referencedColumns: ["reit_id"];
+          },
+          {
+            foreignKeyName: "acquisitions_reit_id_fkey";
+            columns: ["reit_id"];
+            isOneToOne: false;
             referencedRelation: "reits";
             referencedColumns: ["id"];
           },
@@ -150,6 +157,13 @@ export type Database = {
             foreignKeyName: "dispositions_reit_id_fkey";
             columns: ["reit_id"];
             isOneToOne: false;
+            referencedRelation: "reit_rankings";
+            referencedColumns: ["reit_id"];
+          },
+          {
+            foreignKeyName: "dispositions_reit_id_fkey";
+            columns: ["reit_id"];
+            isOneToOne: false;
             referencedRelation: "reits";
             referencedColumns: ["id"];
           },
@@ -158,6 +172,63 @@ export type Database = {
             columns: ["source_id"];
             isOneToOne: false;
             referencedRelation: "sources";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      portfolio_transactions: {
+        Row: {
+          created_at: string;
+          id: string;
+          memo: string | null;
+          owner_id: string;
+          price_per_unit_yen: number;
+          quantity_units: number;
+          reit_id: string;
+          source: string;
+          transaction_date: string;
+          transaction_type: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          memo?: string | null;
+          owner_id?: string;
+          price_per_unit_yen: number;
+          quantity_units: number;
+          reit_id: string;
+          source?: string;
+          transaction_date: string;
+          transaction_type: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          memo?: string | null;
+          owner_id?: string;
+          price_per_unit_yen?: number;
+          quantity_units?: number;
+          reit_id?: string;
+          source?: string;
+          transaction_date?: string;
+          transaction_type?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_transactions_reit_id_fkey";
+            columns: ["reit_id"];
+            isOneToOne: false;
+            referencedRelation: "reit_rankings";
+            referencedColumns: ["reit_id"];
+          },
+          {
+            foreignKeyName: "portfolio_transactions_reit_id_fkey";
+            columns: ["reit_id"];
+            isOneToOne: false;
+            referencedRelation: "reits";
             referencedColumns: ["id"];
           },
         ];
@@ -338,6 +409,13 @@ export type Database = {
             foreignKeyName: "raw_transactions_matched_reit_id_fkey";
             columns: ["matched_reit_id"];
             isOneToOne: false;
+            referencedRelation: "reit_rankings";
+            referencedColumns: ["reit_id"];
+          },
+          {
+            foreignKeyName: "raw_transactions_matched_reit_id_fkey";
+            columns: ["matched_reit_id"];
+            isOneToOne: false;
             referencedRelation: "reits";
             referencedColumns: ["id"];
           },
@@ -400,6 +478,13 @@ export type Database = {
           source_id?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "reit_distributions_reit_id_fkey";
+            columns: ["reit_id"];
+            isOneToOne: false;
+            referencedRelation: "reit_rankings";
+            referencedColumns: ["reit_id"];
+          },
           {
             foreignKeyName: "reit_distributions_reit_id_fkey";
             columns: ["reit_id"];
@@ -467,6 +552,13 @@ export type Database = {
             foreignKeyName: "reit_market_snapshots_reit_id_fkey";
             columns: ["reit_id"];
             isOneToOne: false;
+            referencedRelation: "reit_rankings";
+            referencedColumns: ["reit_id"];
+          },
+          {
+            foreignKeyName: "reit_market_snapshots_reit_id_fkey";
+            columns: ["reit_id"];
+            isOneToOne: false;
             referencedRelation: "reits";
             referencedColumns: ["id"];
           },
@@ -530,6 +622,13 @@ export type Database = {
             foreignKeyName: "reit_portfolio_metrics_reit_id_fkey";
             columns: ["reit_id"];
             isOneToOne: false;
+            referencedRelation: "reit_rankings";
+            referencedColumns: ["reit_id"];
+          },
+          {
+            foreignKeyName: "reit_portfolio_metrics_reit_id_fkey";
+            columns: ["reit_id"];
+            isOneToOne: false;
             referencedRelation: "reits";
             referencedColumns: ["id"];
           },
@@ -581,44 +680,6 @@ export type Database = {
         };
         Relationships: [];
       };
-      research_notes: {
-        Row: {
-          body: string;
-          created_at: string;
-          id: string;
-          owner_id: string;
-          property_id: string | null;
-          title: string;
-          updated_at: string;
-        };
-        Insert: {
-          body?: string;
-          created_at?: string;
-          id?: string;
-          owner_id?: string;
-          property_id?: string | null;
-          title: string;
-          updated_at?: string;
-        };
-        Update: {
-          body?: string;
-          created_at?: string;
-          id?: string;
-          owner_id?: string;
-          property_id?: string | null;
-          title?: string;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "research_notes_property_id_fkey";
-            columns: ["property_id"];
-            isOneToOne: false;
-            referencedRelation: "properties";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
       sources: {
         Row: {
           base_url: string | null;
@@ -648,6 +709,37 @@ export type Database = {
       };
     };
     Views: {
+      my_reit_holdings: {
+        Row: {
+          average_acquisition_price_yen: number | null;
+          first_acquired_at: string | null;
+          last_transaction_date: string | null;
+          net_quantity_units: number | null;
+          owner_id: string | null;
+          reit_id: string | null;
+          reit_name: string | null;
+          securities_code: string | null;
+          status: string | null;
+          total_bought_quantity_units: number | null;
+          total_sold_quantity_units: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_transactions_reit_id_fkey";
+            columns: ["reit_id"];
+            isOneToOne: false;
+            referencedRelation: "reit_rankings";
+            referencedColumns: ["reit_id"];
+          },
+          {
+            foreignKeyName: "portfolio_transactions_reit_id_fkey";
+            columns: ["reit_id"];
+            isOneToOne: false;
+            referencedRelation: "reits";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       property_holdings: {
         Row: {
           net_ownership_ratio: number | null;
@@ -666,10 +758,43 @@ export type Database = {
             foreignKeyName: "acquisitions_reit_id_fkey";
             columns: ["reit_id"];
             isOneToOne: false;
+            referencedRelation: "reit_rankings";
+            referencedColumns: ["reit_id"];
+          },
+          {
+            foreignKeyName: "acquisitions_reit_id_fkey";
+            columns: ["reit_id"];
+            isOneToOne: false;
             referencedRelation: "reits";
             referencedColumns: ["id"];
           },
         ];
+      };
+      reit_rankings: {
+        Row: {
+          annual_distribution_yen: number | null;
+          asset_size_yen: number | null;
+          average_building_age_years: number | null;
+          distribution_yield_pct: number | null;
+          fiscal_period_end: string | null;
+          interest_bearing_debt_ratio_pct: number | null;
+          market_cap_yen: number | null;
+          name: string | null;
+          nav_multiple: number | null;
+          nav_per_unit_yen: number | null;
+          noi_yield_pct: number | null;
+          primary_use_type: string | null;
+          property_count: number | null;
+          reit_id: string | null;
+          roe_pct: number | null;
+          securities_code: string | null;
+          snapshot_date: string | null;
+          trading_volume_units: number | null;
+          unit_price_change_pct: number | null;
+          unit_price_yen: number | null;
+          unrealized_gain_loss_pct: number | null;
+        };
+        Relationships: [];
       };
     };
     Functions: {

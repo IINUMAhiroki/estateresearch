@@ -75,7 +75,7 @@ export function LoginForm() {
         return;
       }
 
-      window.location.href = "/notes";
+      window.location.href = "/property-transactions";
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "ログインに失敗しました",
