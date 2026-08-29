@@ -15,7 +15,7 @@ supabase start
 pnpm dev
 ```
 
-http://localhost:3000 を開く。
+<http://localhost:3000> を開く。
 
 ## データモデル
 
@@ -150,7 +150,7 @@ erDiagram
     }
 ```
 
-**補足**
+### 補足
 
 - `property_holdings` はテーブルではなく **VIEW**（`security_invoker = true`）。`acquisitions` の持分合計から `dispositions` の持分合計を引いた「現在の純保有割合」を導出し、0より大きい行だけを返す。同一物件を複数REITが持分（准共有）で保有するケースは `acquisitions`/`dispositions` の `ownership_ratio` 列で表現し、このビューが「今どのREITが何%持っているか」を常に矛盾なく返す。
 - `raw_transactions` は将来のスクレイピング/名寄せ用の取り込み層。`anon`・`authenticated` どちらからも一切アクセスできない（`using (false)` の明示的な拒否ポリシー + grant revoke）。マッチング前の生データをアプリのAPI表面に出さないための設計。
