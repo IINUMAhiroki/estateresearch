@@ -1,4 +1,4 @@
-import { ImportForm } from "./import-form";
+import { ImportWizard } from "./import-wizard";
 
 export default function PortfolioImportPage() {
   return (
@@ -6,11 +6,11 @@ export default function PortfolioImportPage() {
       <div>
         <h1 className="text-xl font-semibold">CSVインポート</h1>
         <p className="text-sm text-muted-foreground">
-          証券会社の取引履歴CSVから保有REITを一括登録する。
+          証券会社の取引履歴CSVから保有REITを一括登録する。列の対応を確認・修正してからインポートできる。
         </p>
       </div>
 
-      <ImportForm />
+      <ImportWizard />
     </div>
   );
 }

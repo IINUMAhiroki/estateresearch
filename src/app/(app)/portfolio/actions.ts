@@ -1,7 +1,11 @@
 "use server";
 
+import iconv from "iconv-lite";
 import { revalidatePath } from "next/cache";
-import { type Broker, parseBrokerCsv } from "@/lib/csv/parse-broker-csv";
+import { z } from "zod";
+import { looksMojibake } from "@/lib/csv/detect-encoding";
+import { parseCsvText } from "@/lib/csv/parse-csv-text";
+import { parseFlexibleDate } from "@/lib/csv/parse-date";
 import { createClient } from "@/lib/supabase/server";
 import {
   createTransactionSchema,
@@ -73,23 +77,56 @@ export async function deleteTransaction(formData: FormData) {
   return { error: null };
 }
 
-export async function importCsv(formData: FormData) {
-  const broker = formData.get("broker");
-  const file = formData.get("file");
+const columnMappingSchema = z.object({
+  securitiesCode: z.number().int().nonnegative(),
+  transactionType: z.number().int().nonnegative(),
+  quantityUnits: z.number().int().nonnegative(),
+  pricePerUnitYen: z.number().int().nonnegative(),
+  transactionDate: z.number().int().nonnegative(),
+});
 
-  if (broker !== "sbi" && broker !== "rakuten") {
-    return {
-      error: "証券会社を選択してください",
-      successCount: 0,
-      errorCount: 0,
-    };
-  }
+const valueMapSchema = z.record(z.string(), z.enum(["buy", "sell", "skip"]));
+
+type ImportResult = {
+  error: string | null;
+  successCount: number;
+  errorCount: number;
+  errors?: string[];
+};
+
+/**
+ * Imports a brokerage transaction-history CSV using a user-confirmed column
+ * mapping (built in the ImportWizard preview UI) rather than a hardcoded
+ * per-broker parser — no real SBI/Rakuten sample export was ever obtained,
+ * and a mapping UI works regardless of which broker the file came from.
+ * Re-parses the raw file server-side rather than trusting client-derived
+ * rows; only the column-index mapping and value mapping are trusted input.
+ */
+export async function importMappedCsv(
+  formData: FormData,
+): Promise<ImportResult> {
+  const file = formData.get("file");
+  const mappingRaw = formData.get("mapping");
+  const valueMapRaw = formData.get("valueMap");
+
   if (!(file instanceof File) || file.size === 0) {
     return {
       error: "CSVファイルを選択してください",
       successCount: 0,
       errorCount: 0,
     };
+  }
+  if (typeof mappingRaw !== "string" || typeof valueMapRaw !== "string") {
+    return { error: "列の対応情報が不正です", successCount: 0, errorCount: 0 };
+  }
+
+  let mapping: z.infer<typeof columnMappingSchema>;
+  let valueMap: z.infer<typeof valueMapSchema>;
+  try {
+    mapping = columnMappingSchema.parse(JSON.parse(mappingRaw));
+    valueMap = valueMapSchema.parse(JSON.parse(valueMapRaw));
+  } catch {
+    return { error: "列の対応情報が不正です", successCount: 0, errorCount: 0 };
   }
 
   const supabase = await createClient();
@@ -100,17 +137,14 @@ export async function importCsv(formData: FormData) {
     return { error: "ログインが必要です", successCount: 0, errorCount: 0 };
   }
 
-  let parsed: ReturnType<typeof parseBrokerCsv>;
-  try {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    parsed = parseBrokerCsv(broker as Broker, buffer);
-  } catch (e) {
-    return {
-      error: e instanceof Error ? e.message : "CSVの解析に失敗しました",
-      successCount: 0,
-      errorCount: 0,
-    };
+  const buffer = Buffer.from(await file.arrayBuffer());
+  let text = iconv.decode(buffer, "utf-8");
+  if (looksMojibake(text)) {
+    text = iconv.decode(buffer, "Shift_JIS");
   }
+
+  const table = parseCsvText(text);
+  const dataRows = table.slice(1); // first row is always treated as the header
 
   const { data: reits } = await supabase
     .from("reits")
@@ -119,24 +153,57 @@ export async function importCsv(formData: FormData) {
     (reits ?? []).map((r) => [r.securities_code, r.id]),
   );
 
-  const rowsToInsert = [];
-  const errors = [...parsed.errors];
-  for (const row of parsed.rows) {
-    const reitId = reitIdByCode.get(row.securitiesCode);
-    if (!reitId) {
-      errors.push(
-        `証券コード ${row.securitiesCode} はREITとして登録されていません`,
-      );
+  const rowsToInsert: {
+    reit_id: string;
+    transaction_type: "buy" | "sell";
+    quantity_units: number;
+    price_per_unit_yen: number;
+    transaction_date: string;
+    source: "csv_import";
+  }[] = [];
+  const errors: string[] = [];
+
+  for (const row of dataRows) {
+    const code = row[mapping.securitiesCode]?.trim();
+    const rawType = row[mapping.transactionType]?.trim();
+    const type = rawType ? valueMap[rawType] : undefined;
+
+    // Rows the user chose to ignore (e.g. dividend/fee rows) are silently
+    // skipped — not counted as errors.
+    if (!type || type === "skip") continue;
+    if (!code) {
+      errors.push("証券コードが空の行をスキップしました");
       continue;
     }
+
+    const reitId = reitIdByCode.get(code);
+    if (!reitId) {
+      errors.push(`証券コード ${code} はREITとして登録されていません`);
+      continue;
+    }
+
+    const quantity = Number(row[mapping.quantityUnits]?.replace(/,/g, ""));
+    const price = Number(row[mapping.pricePerUnitYen]?.replace(/,/g, ""));
+    const date = parseFlexibleDate(row[mapping.transactionDate]);
+
+    if (
+      !date ||
+      !Number.isFinite(quantity) ||
+      quantity <= 0 ||
+      !Number.isFinite(price) ||
+      price < 0
+    ) {
+      errors.push(`証券コード ${code} の行の値を読み取れませんでした`);
+      continue;
+    }
+
     rowsToInsert.push({
       reit_id: reitId,
-      transaction_type: row.transactionType,
-      quantity_units: row.quantityUnits,
-      price_per_unit_yen: row.pricePerUnitYen,
-      transaction_date: row.transactionDate,
-      source:
-        broker === "sbi" ? ("csv_sbi" as const) : ("csv_rakuten" as const),
+      transaction_type: type,
+      quantity_units: quantity,
+      price_per_unit_yen: price,
+      transaction_date: date,
+      source: "csv_import",
     });
   }
 
