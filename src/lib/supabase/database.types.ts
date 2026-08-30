@@ -261,6 +261,8 @@ export type Database = {
           created_at: string;
           id: string;
           name: string;
+          normalized_address: string | null;
+          normalized_name: string | null;
           prefecture: string | null;
           region_id: string | null;
           total_floor_area_sqm: number | null;
@@ -273,6 +275,8 @@ export type Database = {
           created_at?: string;
           id?: string;
           name: string;
+          normalized_address?: string | null;
+          normalized_name?: string | null;
           prefecture?: string | null;
           region_id?: string | null;
           total_floor_area_sqm?: number | null;
@@ -285,6 +289,8 @@ export type Database = {
           created_at?: string;
           id?: string;
           name?: string;
+          normalized_address?: string | null;
+          normalized_name?: string | null;
           prefecture?: string | null;
           region_id?: string | null;
           total_floor_area_sqm?: number | null;
@@ -645,6 +651,7 @@ export type Database = {
         Row: {
           asset_manager: string | null;
           created_at: string;
+          edinet_code: string | null;
           fiscal_month: number | null;
           id: string;
           listed_at: string | null;
@@ -657,6 +664,7 @@ export type Database = {
         Insert: {
           asset_manager?: string | null;
           created_at?: string;
+          edinet_code?: string | null;
           fiscal_month?: number | null;
           id?: string;
           listed_at?: string | null;
@@ -669,6 +677,7 @@ export type Database = {
         Update: {
           asset_manager?: string | null;
           created_at?: string;
+          edinet_code?: string | null;
           fiscal_month?: number | null;
           id?: string;
           listed_at?: string | null;

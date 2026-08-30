@@ -1,0 +1,23 @@
+name: sync-fudosandb
+
+# Syncs J-REIT data from fudosandb.jp into the Supabase Cloud project. Runs
+# daily; also triggerable by hand to verify without waiting for the cron.
+on:
+  schedule:
+    - cron: "0 21 * * *" # 06:00 JST
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: corepack enable && pnpm install --frozen-lockfile
+      - run: pnpm exec tsx scripts/sync/run.ts
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          FUDOSANDB_API_KEY: ${{ secrets.FUDOSANDB_API_KEY }}
