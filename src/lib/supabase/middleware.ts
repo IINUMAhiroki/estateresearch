@@ -5,7 +5,6 @@ import { clientEnv } from "@/lib/env";
 const PROTECTED_PREFIXES = [
   "/property-transactions",
   "/reits",
-  "/rankings",
   "/distributions",
   "/portfolio",
   "/disclosures",

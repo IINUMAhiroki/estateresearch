@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Database } from "@/lib/supabase/database.types";
 
-type RankingRow = Database["public"]["Views"]["reit_rankings"]["Row"];
+type ReitListRow = Database["public"]["Views"]["reit_rankings"]["Row"];
 
-const COLUMNS: { key: keyof RankingRow; label: string }[] = [
+const COLUMNS: { key: keyof ReitListRow; label: string }[] = [
   { key: "unit_price_yen", label: "投資口価格" },
   { key: "unit_price_change_pct", label: "騰落率(%)" },
   { key: "distribution_yield_pct", label: "分配金利回り(%)" },
@@ -20,12 +20,12 @@ const COLUMNS: { key: keyof RankingRow; label: string }[] = [
   { key: "interest_bearing_debt_ratio_pct", label: "有利子負債比率(%)" },
 ];
 
-export function RankingTable({ rankings }: { rankings: RankingRow[] }) {
-  const [sortKey, setSortKey] = useState<keyof RankingRow>("nav_multiple");
+export function ReitListTable({ reits }: { reits: ReitListRow[] }) {
+  const [sortKey, setSortKey] = useState<keyof ReitListRow>("nav_multiple");
   const [sortDesc, setSortDesc] = useState(true);
 
   const sorted = useMemo(() => {
-    return [...rankings].sort((a, b) => {
+    return [...reits].sort((a, b) => {
       const av = a[sortKey];
       const bv = b[sortKey];
       if (av == null && bv == null) return 0;
@@ -34,9 +34,9 @@ export function RankingTable({ rankings }: { rankings: RankingRow[] }) {
       const diff = Number(av) - Number(bv);
       return sortDesc ? -diff : diff;
     });
-  }, [rankings, sortKey, sortDesc]);
+  }, [reits, sortKey, sortDesc]);
 
-  function toggleSort(key: keyof RankingRow) {
+  function toggleSort(key: keyof ReitListRow) {
     if (key === sortKey) {
       setSortDesc((prev) => !prev);
     } else {
@@ -86,7 +86,14 @@ export function RankingTable({ rankings }: { rankings: RankingRow[] }) {
                   href={`/reits/${row.securities_code}`}
                   className="hover:underline"
                 >
-                  {row.name}（{row.securities_code}）
+                  <span>
+                    {row.name}（{row.securities_code}）
+                  </span>
+                  {(row.primary_use_type || row.sponsor) && (
+                    <span className="block text-xs text-muted-foreground">
+                      {row.primary_use_type ?? row.sponsor}
+                    </span>
+                  )}
                 </Link>
               </td>
               {COLUMNS.map((col) => (
