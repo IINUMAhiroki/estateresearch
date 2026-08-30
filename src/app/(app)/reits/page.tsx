@@ -1,9 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
-import { ReitListTable } from "./reit-list-table";
+import { ReitListScreen } from "./reit-list-screen";
 
 export default async function ReitsPage() {
   const supabase = await createClient();
-  const { data: reits } = await supabase.from("reit_rankings").select("*");
+  const [{ data: reits }, { data: savedFilters }] = await Promise.all([
+    supabase.from("reit_rankings").select("*"),
+    supabase
+      .from("reit_list_filters")
+      .select("*")
+      .order("created_at", { ascending: true }),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -14,7 +20,7 @@ export default async function ReitsPage() {
         </p>
       </div>
 
-      <ReitListTable reits={reits ?? []} />
+      <ReitListScreen reits={reits ?? []} savedFilters={savedFilters ?? []} />
     </div>
   );
 }
