@@ -2,12 +2,11 @@
 
 import { ArrowDown, ArrowUp } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
 import type { Database } from "@/lib/supabase/database.types";
 
-type ReitListRow = Database["public"]["Views"]["reit_rankings"]["Row"];
+export type ReitListRow = Database["public"]["Views"]["reit_rankings"]["Row"];
 
-const COLUMNS: { key: keyof ReitListRow; label: string }[] = [
+export const COLUMNS: { key: keyof ReitListRow; label: string }[] = [
   { key: "unit_price_yen", label: "投資口価格" },
   { key: "unit_price_change_pct", label: "騰落率(%)" },
   { key: "distribution_yield_pct", label: "分配金利回り(%)" },
@@ -20,31 +19,17 @@ const COLUMNS: { key: keyof ReitListRow; label: string }[] = [
   { key: "interest_bearing_debt_ratio_pct", label: "有利子負債比率(%)" },
 ];
 
-export function ReitListTable({ reits }: { reits: ReitListRow[] }) {
-  const [sortKey, setSortKey] = useState<keyof ReitListRow>("nav_multiple");
-  const [sortDesc, setSortDesc] = useState(true);
-
-  const sorted = useMemo(() => {
-    return [...reits].sort((a, b) => {
-      const av = a[sortKey];
-      const bv = b[sortKey];
-      if (av == null && bv == null) return 0;
-      if (av == null) return 1;
-      if (bv == null) return -1;
-      const diff = Number(av) - Number(bv);
-      return sortDesc ? -diff : diff;
-    });
-  }, [reits, sortKey, sortDesc]);
-
-  function toggleSort(key: keyof ReitListRow) {
-    if (key === sortKey) {
-      setSortDesc((prev) => !prev);
-    } else {
-      setSortKey(key);
-      setSortDesc(true);
-    }
-  }
-
+export function ReitListTable({
+  reits,
+  sortKey,
+  sortDesc,
+  onToggleSort,
+}: {
+  reits: ReitListRow[];
+  sortKey: keyof ReitListRow;
+  sortDesc: boolean;
+  onToggleSort: (key: keyof ReitListRow) => void;
+}) {
   return (
     <div className="overflow-x-auto rounded-lg border">
       <table className="w-full text-sm">
@@ -60,7 +45,7 @@ export function ReitListTable({ reits }: { reits: ReitListRow[] }) {
               >
                 <button
                   type="button"
-                  onClick={() => toggleSort(col.key)}
+                  onClick={() => onToggleSort(col.key)}
                   className="inline-flex items-center gap-1 hover:text-foreground"
                 >
                   {col.label}
@@ -76,7 +61,7 @@ export function ReitListTable({ reits }: { reits: ReitListRow[] }) {
           </tr>
         </thead>
         <tbody>
-          {sorted.map((row) => (
+          {reits.map((row) => (
             <tr
               key={row.reit_id}
               className="border-b last:border-0 hover:bg-muted/30"
@@ -103,7 +88,7 @@ export function ReitListTable({ reits }: { reits: ReitListRow[] }) {
               ))}
             </tr>
           ))}
-          {sorted.length === 0 && (
+          {reits.length === 0 && (
             <tr>
               <td
                 colSpan={COLUMNS.length + 1}

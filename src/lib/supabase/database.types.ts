@@ -507,6 +507,42 @@ export type Database = {
           },
         ];
       };
+      reit_list_filters: {
+        Row: {
+          created_at: string;
+          filter: Json;
+          id: string;
+          is_default: boolean;
+          name: string;
+          owner_id: string;
+          sort_desc: boolean;
+          sort_key: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          filter?: Json;
+          id?: string;
+          is_default?: boolean;
+          name: string;
+          owner_id?: string;
+          sort_desc?: boolean;
+          sort_key?: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          filter?: Json;
+          id?: string;
+          is_default?: boolean;
+          name?: string;
+          owner_id?: string;
+          sort_desc?: boolean;
+          sort_key?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       reit_market_snapshots: {
         Row: {
           created_at: string;
@@ -808,7 +844,10 @@ export type Database = {
       };
     };
     Functions: {
-      [_ in never]: never;
+      set_default_reit_list_filter: {
+        Args: { target_id: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       [_ in never]: never;
