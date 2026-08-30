@@ -69,6 +69,16 @@ function parseCsvLine(line: string): string[] {
   return line.split(",").map((cell) => cell.trim().replace(/^"|"$/g, ""));
 }
 
+// JPX lists infrastructure funds separately from its 58-issue J-REIT market
+// (インフラファンド市場, not 不動産投資信託証券). EDINET's
+// "内国投資証券" filing kind doesn't distinguish the two, so exclude these
+// known infrastructure-fund EDINET codes by hand to match JPX's REIT count.
+const INFRASTRUCTURE_FUND_EDINET_CODES = new Set([
+  "E32725", // いちごグリーンインフラ投資法人
+  "E33433", // カナディアン・ソーラー・インフラ投資法人
+  "E34255", // 東京インフラ・エネルギー投資法人
+]);
+
 async function main() {
   console.log("downloading fund code list from EDINET...");
   const zipBuffer = await downloadFundCodeZip();
@@ -88,6 +98,7 @@ async function main() {
     if (row.length < 9) continue;
     const [, secCode, name, , kind, , , edinetCode] = row;
     if (kind !== "内国投資証券" || !secCode.trim()) continue;
+    if (INFRASTRUCTURE_FUND_EDINET_CODES.has(edinetCode)) continue;
     // EDINET pads the displayed securities code with a trailing "0".
     reitRows.push({ edinetCode, securitiesCode: secCode.slice(0, -1), name });
   }
