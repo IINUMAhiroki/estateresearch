@@ -798,6 +798,7 @@ export type Database = {
           roe_pct: number | null;
           securities_code: string | null;
           snapshot_date: string | null;
+          sponsor: string | null;
           trading_volume_units: number | null;
           unit_price_change_pct: number | null;
           unit_price_yen: number | null;

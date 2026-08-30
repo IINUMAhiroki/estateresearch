@@ -2,7 +2,6 @@
 
 import {
   ArrowLeftRight,
-  BarChart3,
   CalendarClock,
   FileText,
   Landmark,
@@ -29,7 +28,6 @@ const NAV_ITEMS = [
     icon: ArrowLeftRight,
   },
   { href: "/reits", label: "REIT銘柄", icon: Landmark },
-  { href: "/rankings", label: "ランキング", icon: BarChart3 },
   { href: "/distributions", label: "分配金予実", icon: CalendarClock },
   { href: "/portfolio", label: "保有REIT", icon: Wallet },
   { href: "/disclosures", label: "決算資料", icon: FileText },
